@@ -1,56 +1,42 @@
 import java.rmi.Naming;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 
 public class Client {
 
+    static ServerCommInterface sci;
+    static String teamName = "MD5nack";
+    static int slaveCnt=2;
+
 	public static void main(String[] args) throws Exception {
 
-		if(args.length < 3)
-		{
-			System.out.println("Proper Usage is: java Client serverAddress yourOwnIPAddress teamname");
-			System.exit(0);
-		}
-		
-		String teamName = args[2];
-	
-		System.out.println("Client starting, listens on IP " + args[1] + " for server callback.");
+        String ownip = "localhost";
+        String serverip = "localhost";
+        String ip = "localhost";
 
-		// This is crucial, otherwise the RPis will not be reachable from the server.
-		System.setProperty("java.rmi.server.hostname", args[1]);
-		
-		// Initially we have no problem :)
-		byte[] problem = null;
+        System.setProperty("java.security.policy","file:security.policy");
+        System.setProperty("java.rmi.server.hostname", ownip);
+        System.setSecurityManager(new SecurityManager());
 
-		
-		// Lookup the server
-		ServerCommInterface sci = (ServerCommInterface)Naming.lookup("rmi://" + args[0] + "/server");
-		
-		// Create a communication handler and register it with the server
-		// The communication handler is the object that will receive the tasks from the server
-		ClientCommHandler cch = new ClientCommHandler();
-		System.out.println("Client registers with the server");
-		sci.register(teamName, cch);
-		
-		MessageDigest md = MessageDigest.getInstance("MD5");
-		
-		// Now forever solve tasks given by the server
-		while (true) {
-			// Wait until getting a problem from the server
-			while (cch.currProblem==null) {Thread.sleep(5);}
-			problem = cch.currProblem;
-			// Then bruteforce try all integers till problemsize
-			for (Integer i=0; i<=cch.currProblemSize; i++) {
-				// Calculate their hash
-				byte[] currentHash = md.digest(i.toString().getBytes());
-				// If the calculated hash equals the one given by the server, submit the integer as solution
-				if (Arrays.equals(currentHash, problem)) {
-					System.out.println("client submits solution");
-					sci.submitSolution(teamName, i.toString());
-					cch.currProblem=null;
-					break;
-				}
-			}
-		}
-	}
+        Registry reg = LocateRegistry.createRegistry(1100);
+        ClientCommHandler cch = new ClientCommHandler();
+        Naming.bind("rmi://localhost/client", cch);
+
+
+
+        // This is crucial, otherwise the RPis will not be reachable from the server.
+
+        System.out.println("Waiting for " + slaveCnt + " slaves");
+    /*
+
+        // Lookup the server
+        System.out.println("Listens on IP " + ownip + " for server callback.");
+        sci = (ServerCommInterface)Naming.lookup("rmi://" + serverip + "/server");
+        // Create a communication handler and register it with the server
+        // The communication handler is the object that will receive the tasks from the server
+        System.out.println("Client registers with the server");
+        sci.register(teamName, cch);*/
+    }
 }
